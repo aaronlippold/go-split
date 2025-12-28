@@ -1,0 +1,41 @@
+Based on the code structure and responsibilities, here's my recommended split:
+
+## Recommended Split
+
+### 1. **`label_cmd.go`** (keep minimal root command)
+- `labelCmd` root command definition
+- `init()` function to register subcommands
+- Package-level documentation
+
+**Why**: Central registry for label commands.
+
+### 2. **`label_add.go`**
+- `labelAddCmd` command
+- Reserved namespace validation logic (`provides:` check)
+
+**Why**: Self-contained add operation with its specific business rules.
+
+### 3. **`label_remove.go`**
+- `labelRemoveCmd` command
+
+**Why**: Parallel structure to add; independent operation.
+
+### 4. **`label_list.go`**
+- `labelListCmd` (single issue)
+- `labelListAllCmd` (all labels with counts)
+
+**Why**: Both are read-only query operations; distinct from mutation commands.
+
+### 5. **`label_utils.go`** or keep in `label_cmd.go`
+- `resolveIDs()` helper
+- `parseLabelArgs()` helper
+
+**Why**: Shared utilities used across multiple commands. Could stay in `label_cmd.go` if you prefer keeping helpers with the root command.
+
+## Benefits
+
+1. **Separation of concerns**: Each file handles one command/operation
+2. **Easier testing**: Can test add/remove/list independently
+3. **Reduced duplication review**: The `//nolint:dupl` commands are now in separate files, making it clearer they're intentionally similar
+4. **Parallel development**: Multiple developers can work on different label operations without conflicts
+5. **Clear ownership**: Business rules (like `provides:` validation) live with their relevant command
