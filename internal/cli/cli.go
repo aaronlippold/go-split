@@ -2,7 +2,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -225,14 +224,14 @@ Return a brief summary with:
 Be concise. File content:
 %s`, string(content))
 
-	result, err := client.Call(prompt, 1500)
+	response, err := client.Call(prompt, 1500)
 	if err != nil {
 		fmt.Fprintf(stdout, " ✗\n")
 		return fmt.Errorf("API call failed: %w", err)
 	}
 	fmt.Fprintf(stdout, " ✓\n\n")
 
-	fmt.Fprintf(stdout, "📋 Recommendations:\n%s\n", result)
+	fmt.Fprintf(stdout, "📋 Recommendations:\n%s\n", response)
 
 	return nil
 }
