@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -42,10 +44,11 @@ type APIError struct {
 
 // Client is an API client for the Anthropic Messages API.
 type Client struct {
-	endpoint string
-	model    string
-	timeout  time.Duration
-	http     *http.Client
+	endpoint   string
+	model      string
+	timeout    time.Duration
+	http       *http.Client
+	captureDir string // If set, captures request/response to files
 }
 
 // NewClient creates a new API client.
@@ -56,6 +59,12 @@ func NewClient(endpoint, model string, timeout time.Duration) *Client {
 		timeout:  timeout,
 		http:     &http.Client{Timeout: timeout},
 	}
+}
+
+// WithCapture enables capture mode, saving requests/responses to the given directory.
+func (c *Client) WithCapture(dir string) *Client {
+	c.captureDir = dir
+	return c
 }
 
 // Call sends a prompt to the API and returns the response text.
@@ -107,5 +116,39 @@ func (c *Client) Call(prompt string, maxTokens int) (string, error) {
 		return "", fmt.Errorf("empty response from API")
 	}
 
-	return apiResp.Content[0].Text, nil
+	responseText := apiResp.Content[0].Text
+
+	// Capture request/response if capture mode is enabled
+	if c.captureDir != "" {
+		if err := c.captureExchange(prompt, responseText); err != nil {
+			// Log but don't fail on capture errors
+			fmt.Fprintf(os.Stderr, "Warning: capture failed: %v\n", err)
+		}
+	}
+
+	return responseText, nil
+}
+
+// captureExchange saves the prompt and response to files in the capture directory.
+func (c *Client) captureExchange(prompt, response string) error {
+	if err := os.MkdirAll(c.captureDir, 0755); err != nil {
+		return fmt.Errorf("create capture dir: %w", err)
+	}
+
+	timestamp := time.Now().Format("20060102_150405")
+
+	// Write request (prompt)
+	reqPath := filepath.Join(c.captureDir, fmt.Sprintf("%s_request.txt", timestamp))
+	if err := os.WriteFile(reqPath, []byte(prompt), 0644); err != nil {
+		return fmt.Errorf("write request: %w", err)
+	}
+
+	// Write response
+	respPath := filepath.Join(c.captureDir, fmt.Sprintf("%s_response.txt", timestamp))
+	if err := os.WriteFile(respPath, []byte(response), 0644); err != nil {
+		return fmt.Errorf("write response: %w", err)
+	}
+
+	fmt.Fprintf(os.Stderr, "📝 Captured: %s\n", timestamp)
+	return nil
 }

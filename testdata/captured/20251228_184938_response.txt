@@ -1,0 +1,36 @@
+Based on my analysis of the Go file you provided and the existing project structure, here's my recommendation for splitting it:
+
+## Recommended Split
+
+### 1. **fork_protection.go**
+**Contains:**
+- `ensureForkProtection()`
+- `isUpstreamRepo()`
+- `isAlreadyExcluded()`
+- `addToExclude()`
+
+**Why:** This is a self-contained security feature with no dependencies on the rest of main.go. It has a clear single responsibility.
+
+### 2. **Keep existing files as-is**
+The file you shared appears to already BE split appropriately. I see you already have separate files for:
+- `flush_manager.go` - auto-flush logic
+- `nodb.go` - no-db mode handling  
+- `daemon_*.go` files - daemon functionality
+- `version.go` - version handling
+
+## Why This Makes Sense
+
+**Single split recommended:**
+- The fork protection code (72 lines) is completely independent
+- It's called once from `PersistentPreRun` and doesn't interact with other initialization
+- Clear boundary: Git safety mechanism vs. core application logic
+- Makes the feature easy to test in isolation
+
+**Main.go should keep:**
+- Root command definition and Cobra setup
+- Global state variables (store, handler, flags)
+- Lifecycle hooks (PersistentPreRun, PersistentPostRun)
+- Initialization orchestration
+- Helper functions tightly coupled to main flow (colorizeHelpOutput, signalGasTownActivity, handleFreshCloneError)
+
+The main.go file is large (~1100 lines) but it's appropriately structured as the application entry point that coordinates initialization. Breaking it into smaller files would scatter the initialization logic and make the bootstrap flow harder to follow.

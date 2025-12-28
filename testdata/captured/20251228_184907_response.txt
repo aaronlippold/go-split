@@ -1,0 +1,31 @@
+Looking at this file, here's my recommended split:
+
+## Recommended Split
+
+### 1. **`unmarshal.go`**
+**Contains:**
+- `unmarshalOrFail`
+- `unmarshalOrWarn`
+- `unmarshalOrIgnore`
+
+**Why:** These are generic JSON unmarshaling utilities with different error-handling strategies. They're cohesive helpers for response processing.
+
+### 2. **`resolve.go`**
+**Contains:**
+- `resolveSingleID`
+- `resolveManyIDs`
+- `resolveManyIDsSkipFailures`
+
+**Why:** These are all ID resolution operations. They build on each other (single → many → many with skip) and have a clear single responsibility.
+
+## Why This Split Makes Sense
+
+1. **Separation of Concerns**: Unmarshaling logic is distinct from ID resolution logic
+2. **Discoverability**: Developers looking for unmarshal helpers won't wade through ID resolution code
+3. **Testability**: Each file can have focused unit tests
+4. **Clear Boundaries**: 
+   - `unmarshal.go` = generic data transformation
+   - `resolve.go` = domain-specific ID operations (uses RPC handler)
+5. **Future Growth**: ID resolution might expand with caching, validation, etc. Unmarshaling is likely stable.
+
+Both files should keep `package main` and the current imports (adjust as needed).

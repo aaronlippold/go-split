@@ -1,0 +1,116 @@
+Analyze this Go file and return ONLY a JSON array of filenames to create.
+Example: ["helpers.go", "handlers.go", "types.go"]
+
+Rules:
+- Use descriptive names based on content
+- Keep related code together
+- Separate helpers from main logic
+
+File content:
+package main
+
+import (
+	"encoding/json"
+
+	"github.com/steveyegge/beads/internal/rpc"
+)
+
+// =============================================================================
+// Generic JSON Unmarshal Helpers
+// =============================================================================
+
+// unmarshalOrFail unmarshals resp.Data into type T, exiting on error.
+// Use this for required data that must exist for the command to succeed.
+//
+// Example:
+//
+//	issue := unmarshalOrFail[types.Issue](resp, "issue")
+func unmarshalOrFail[T any](resp *rpc.Response, context string) T {
+	var result T
+	if err := json.Unmarshal(resp.Data, &result); err != nil {
+		FatalErrorRespectJSON("unmarshaling %s: %v", context, err)
+	}
+	return result
+}
+
+// unmarshalOrWarn unmarshals resp.Data into type T, warning on error.
+// Use this for optional data where failure shouldn't stop the command.
+//
+// Example:
+//
+//	issue, err := unmarshalOrWarn[types.Issue](resp, "issue")
+//	if err == nil {
+//	    issues = append(issues, &issue)
+//	}
+func unmarshalOrWarn[T any](resp *rpc.Response, context string) (T, error) {
+	var result T
+	if err := json.Unmarshal(resp.Data, &result); err != nil {
+		WarnError("unmarshaling %s: %v", context, err)
+		return result, err
+	}
+	return result, nil
+}
+
+// unmarshalOrIgnore unmarshals resp.Data into type T, silently ignoring errors.
+// Use this for optional data in loops where you want to skip failures.
+//
+// Example:
+//
+//	for _, resp := range responses {
+//	    if issue, ok := unmarshalOrIgnore[types.Issue](resp); ok {
+//	        issues = append(issues, &issue)
+//	    }
+//	}
+func unmarshalOrIgnore[T any](resp *rpc.Response) (T, bool) {
+	var result T
+	if err := json.Unmarshal(resp.Data, &result); err != nil {
+		return result, false
+	}
+	return result, true
+}
+
+// resolveSingleID resolves a partial ID to a full ID.
+// Exits with error if resolution fails.
+func resolveSingleID(partialID string) string {
+	resp, err := handler.ResolveID(&rpc.ResolveIDArgs{ID: partialID})
+	if err != nil {
+		FatalErrorRespectJSON("resolving ID %s: %v", partialID, err)
+	}
+	var resolvedID string
+	if err := json.Unmarshal(resp.Data, &resolvedID); err != nil {
+		FatalErrorRespectJSON("unmarshaling resolved ID: %v", err)
+	}
+	return resolvedID
+}
+
+// resolveManyIDs resolves multiple partial IDs to full IDs.
+// Exits with error if any resolution fails.
+func resolveManyIDs(partialIDs []string) []string {
+	resolvedIDs := make([]string, 0, len(partialIDs))
+	for _, id := range partialIDs {
+		resolvedIDs = append(resolvedIDs, resolveSingleID(id))
+	}
+	return resolvedIDs
+}
+
+// resolveManyIDsSkipFailures resolves multiple partial IDs, skipping failures.
+// Returns resolved IDs and count of failures. Use this for batch operations
+// where you want to continue processing even if some IDs fail.
+func resolveManyIDsSkipFailures(partialIDs []string) (resolvedIDs []string, failures int) {
+	for _, id := range partialIDs {
+		resp, err := handler.ResolveID(&rpc.ResolveIDArgs{ID: id})
+		if err != nil {
+			WarnError("resolving ID %s: %v", id, err)
+			failures++
+			continue
+		}
+		var resolvedID string
+		if err := json.Unmarshal(resp.Data, &resolvedID); err != nil {
+			WarnError("unmarshaling resolved ID for %s: %v", id, err)
+			failures++
+			continue
+		}
+		resolvedIDs = append(resolvedIDs, resolvedID)
+	}
+	return resolvedIDs, failures
+}

@@ -26,12 +26,13 @@ const (
 
 // Config holds CLI configuration.
 type Config struct {
-	Endpoint  string
-	Model     string
-	Timeout   time.Duration
-	Verbose   bool
-	DryRun    bool
-	OutputDir string
+	Endpoint   string
+	Model      string
+	Timeout    time.Duration
+	Verbose    bool
+	DryRun     bool
+	OutputDir  string
+	CaptureDir string // Directory to capture API requests/responses
 	// Check flags
 	SkipFmt    bool
 	SkipVet    bool
@@ -77,6 +78,7 @@ func Run(args []string, stdout, stderr io.Writer) error {
 	fs.BoolVar(&cfg.Verbose, "verbose", false, "Verbose output")
 	fs.BoolVar(&cfg.DryRun, "dry-run", false, "Preview changes without writing files")
 	fs.StringVar(&cfg.OutputDir, "output", "", "Output directory (default: same as input)")
+	fs.StringVar(&cfg.CaptureDir, "capture", getEnvOrDefault("GO_SPLIT_CAPTURE", ""), "Capture API requests/responses to directory")
 	// Check control flags
 	fs.BoolVar(&cfg.SkipChecks, "skip-checks", false, "Skip all quality checks")
 	fs.BoolVar(&cfg.SkipFmt, "skip-fmt", false, "Skip gofmt check")
@@ -214,6 +216,9 @@ func runAnalyze(cfg *Config, args []string, stdout, stderr io.Writer) error {
 	fmt.Fprintf(stdout, "\n🤖 Getting AI recommendations")
 
 	client := api.NewClient(cfg.Endpoint, cfg.Model, cfg.Timeout)
+	if cfg.CaptureDir != "" {
+		client = client.WithCapture(cfg.CaptureDir)
+	}
 	prompt := fmt.Sprintf(`Analyze this Go file and propose how to split it into smaller, focused files.
 
 Return a brief summary with:
@@ -262,6 +267,9 @@ func runGenerate(cfg *Config, args []string, stdout, stderr io.Writer) error {
 	fmt.Fprintf(stdout, "🤖 Planning split")
 
 	client := api.NewClient(cfg.Endpoint, cfg.Model, cfg.Timeout)
+	if cfg.CaptureDir != "" {
+		client = client.WithCapture(cfg.CaptureDir)
+	}
 	planPrompt := fmt.Sprintf(`Analyze this Go file and return ONLY a JSON array of filenames to create.
 Example: ["helpers.go", "handlers.go", "types.go"]
 
@@ -528,6 +536,7 @@ Flags:
   --verbose        Verbose output
   --dry-run        Preview without writing files
   --output DIR     Output directory
+  --capture DIR    Capture API requests/responses to directory
 
 Check Flags (for 'check' command):
   --skip-checks    Skip all quality checks
@@ -541,6 +550,7 @@ Check Flags (for 'check' command):
 Environment:
   GO_SPLIT_ENDPOINT  API endpoint override
   GO_SPLIT_MODEL     Model override
+  GO_SPLIT_CAPTURE   Capture directory override
 
 Examples:
   go-split analyze server.go
