@@ -27,6 +27,12 @@ func TestParseSourceAndTest(t *testing.T) {
 			expectedTest:   "package foo_test",
 		},
 		{
+			name: "JSON wrapped in markdown code fence",
+			response: "```json\n{\n  \"source\": \"package main\\n\\nfunc Hello() {}\",\n  \"test\": \"package main\\n\\nfunc TestHello(t *testing.T) {}\"\n}\n```",
+			expectedSource: "package main\n\nfunc Hello() {}",
+			expectedTest:   "package main\n\nfunc TestHello(t *testing.T) {}",
+		},
+		{
 			name:           "fallback to raw response",
 			response:       "package main\n\nfunc Hello() {}",
 			expectedSource: "package main\n\nfunc Hello() {}",

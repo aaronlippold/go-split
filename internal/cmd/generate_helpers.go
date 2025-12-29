@@ -60,20 +60,23 @@ func cleanCode(code string) string {
 
 // parseSourceAndTest extracts source and test code from a JSON response.
 func parseSourceAndTest(response string) (source, test string) {
+	// Strip markdown code fences first (AI often wraps JSON in ```json ... ```)
+	cleaned := stripMarkdownFence(response)
+
 	// Try to parse as JSON first
 	var result struct {
 		Source string `json:"source"`
 		Test   string `json:"test"`
 	}
-	if err := json.Unmarshal([]byte(response), &result); err == nil && result.Source != "" {
+	if err := json.Unmarshal([]byte(cleaned), &result); err == nil && result.Source != "" {
 		return result.Source, result.Test
 	}
 
 	// Fallback: try to find JSON object with "source" key in the response
-	start := strings.Index(response, "{")
-	end := strings.LastIndex(response, "}")
+	start := strings.Index(cleaned, "{")
+	end := strings.LastIndex(cleaned, "}")
 	if start >= 0 && end > start {
-		jsonStr := response[start : end+1]
+		jsonStr := cleaned[start : end+1]
 		// Only try if it looks like our expected JSON structure
 		if strings.Contains(jsonStr, `"source"`) {
 			if err := json.Unmarshal([]byte(jsonStr), &result); err == nil && result.Source != "" {
@@ -84,6 +87,24 @@ func parseSourceAndTest(response string) (source, test string) {
 
 	// Last resort: return the whole response as source
 	return response, ""
+}
+
+// stripMarkdownFence removes markdown code fences from a response.
+func stripMarkdownFence(s string) string {
+	s = strings.TrimSpace(s)
+	if strings.HasPrefix(s, "```") {
+		lines := strings.Split(s, "\n")
+		if len(lines) > 2 {
+			// Remove first line (```json or ```)
+			lines = lines[1:]
+			// Remove last line if it's just ```
+			if strings.TrimSpace(lines[len(lines)-1]) == "```" {
+				lines = lines[:len(lines)-1]
+			}
+			return strings.Join(lines, "\n")
+		}
+	}
+	return s
 }
 
 // countTestsInCode counts Test* functions in Go test code.

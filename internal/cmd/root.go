@@ -31,6 +31,7 @@ type Config struct {
 	CaptureDir string
 	APIKey     string
 	NoColor    bool
+	UseWrapper bool // Force wrapper mode even if ANTHROPIC_API_KEY is set
 	// Check flags
 	SkipFmt    bool
 	SkipVet    bool
@@ -72,6 +73,7 @@ and run quality checks.`,
 	rootCmd.PersistentFlags().StringVar(&cfg.CaptureDir, "capture", getEnvOrDefault("GO_SPLIT_CAPTURE", ""), "Capture API requests/responses to directory")
 	rootCmd.PersistentFlags().StringVar(&cfg.APIKey, "api-key", "", "Anthropic API key (uses ANTHROPIC_API_KEY env if not set)")
 	rootCmd.PersistentFlags().BoolVar(&cfg.NoColor, "no-color", false, "Disable colored output")
+	rootCmd.PersistentFlags().BoolVar(&cfg.UseWrapper, "use-wrapper", false, "Force wrapper/proxy mode (ignore ANTHROPIC_API_KEY)")
 
 	// Output format flag (uses gout)
 	BindOutputFlags(rootCmd)
@@ -113,7 +115,8 @@ func getEnvOrDefault(key, defaultVal string) string {
 func newAPIClient() *api.Client {
 	client := api.NewClient(cfg.Endpoint, cfg.Model, cfg.Timeout)
 
-	if cfg.APIKey != "" || os.Getenv("ANTHROPIC_API_KEY") != "" {
+	// Use direct Anthropic API unless --use-wrapper is set
+	if !cfg.UseWrapper && (cfg.APIKey != "" || os.Getenv("ANTHROPIC_API_KEY") != "") {
 		client = client.WithAPIKey(cfg.APIKey)
 	}
 
