@@ -593,7 +593,7 @@ func parseFilenames(response string) []string {
 		arr := response[start+1 : end]
 		parts := strings.Split(arr, ",")
 		for _, p := range parts {
-			p = strings.Trim(p, ` "'\t\n`)
+			p = strings.Trim(p, " \"'\t\n")
 			if strings.HasSuffix(p, ".go") {
 				filenames = append(filenames, p)
 			}

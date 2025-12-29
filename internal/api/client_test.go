@@ -37,7 +37,7 @@ func TestClient_Call_Success(t *testing.T) {
 				{Type: "text", Text: "Hello from test"},
 			},
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -55,7 +55,7 @@ func TestClient_Call_Success(t *testing.T) {
 func TestClient_Call_APIError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"error": {"message": "Internal error"}}`))
+		_, _ = w.Write([]byte(`{"error": {"message": "Internal error"}}`))
 	}))
 	defer server.Close()
 
@@ -69,7 +69,7 @@ func TestClient_Call_APIError(t *testing.T) {
 func TestClient_Call_EmptyResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := api.Response{Content: []api.ContentBlock{}}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
