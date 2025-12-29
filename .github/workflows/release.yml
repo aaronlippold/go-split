@@ -38,12 +38,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Fetch the tag created by semantic-release
-      - name: Fetch new tag
+      # Fetch the tag and clean up semantic-release artifacts
+      - name: Prepare for GoReleaser
         if: steps.semrel.outputs.version != ''
         run: |
           git fetch --tags
           echo "Release version: v${{ steps.semrel.outputs.version }}"
+          # Clean up semantic-release generated files that make git dirty
+          rm -rf .semrel/ .generated-go-semantic-release-changelog.md
+          git checkout -- . 2>/dev/null || true
 
       # Only run GoReleaser if a new version was released
       - name: Run GoReleaser
