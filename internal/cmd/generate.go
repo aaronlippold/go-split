@@ -17,6 +17,7 @@ type GenerateResult struct {
 	SourceFile string          `json:"source_file"`
 	OutputDir  string          `json:"output_dir"`
 	DryRun     bool            `json:"dry_run"`
+	TestFile   string          `json:"test_file,omitempty"`
 	Files      []GeneratedFile `json:"files"`
 }
 
@@ -28,13 +29,16 @@ type GeneratedFile struct {
 	Error  string `json:"error,omitempty"`
 }
 
-var generateCmd = &cobra.Command{
-	Use:   "generate <file>",
-	Short: "Generate split files from a Go file",
-	Long: `Generate split files based on AI analysis. The AI will determine
+// newGenerateCmd creates the generate command.
+func newGenerateCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "generate <file>",
+		Short: "Generate split files from a Go file",
+		Long: `Generate split files based on AI analysis. The AI will determine
 how to best split the file and generate the new files.`,
-	Args: cobra.ExactArgs(1),
-	RunE: runGenerate,
+		Args: cobra.ExactArgs(1),
+		RunE: runGenerate,
+	}
 }
 
 func runGenerate(cmd *cobra.Command, args []string) error {
@@ -67,7 +71,28 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 		Files:      []GeneratedFile{},
 	}
 
+	// Check for associated test file
+	testFilePath := findTestFile(filename)
+	var testContent []byte
+	if testFilePath != "" {
+		result.TestFile = filepath.Base(testFilePath)
+		var err error
+		testContent, err = os.ReadFile(testFilePath)
+		if err != nil {
+			testContent = nil // Ignore read errors
+		}
+	}
+
 	ui.Header(fmt.Sprintf("📄 Splitting %s (%d lines)", filepath.Base(filename), info.Lines))
+
+	if testFilePath != "" {
+		testInfo, _ := analyzer.ParseGoFile(testFilePath)
+		if testInfo != nil {
+			testCount := countTestFunctions(testInfo)
+			ui.Info(fmt.Sprintf("Found test file: %s (%d lines, %d tests) - will split alongside source", result.TestFile, testInfo.Lines, testCount))
+		}
+	}
+
 	ui.StartSpinner("Planning split...")
 
 	client := newAPIClient()
@@ -116,7 +141,7 @@ File content:
 
 	cmd.Println()
 
-	// Generate each file
+	// Generate each file (and its test file if applicable)
 	for i, fname := range filenames {
 		ui.Step(i+1, len(filenames), fmt.Sprintf("Generating %s", fname))
 
@@ -158,6 +183,58 @@ Output ONLY valid Go code. Include package and imports. No markdown.`, fname, st
 			Status: "created",
 		})
 		cmd.Printf(" ✓ (%d lines)\n", lines)
+
+		// Generate corresponding test file if source has tests
+		if len(testContent) > 0 && !strings.HasSuffix(fname, "_test.go") {
+			testFname := strings.TrimSuffix(fname, ".go") + "_test.go"
+			ui.Step(i+1, len(filenames), fmt.Sprintf("Generating %s", testFname))
+
+			testPrompt := fmt.Sprintf(`You are splitting a Go test file to match a source file split.
+
+The source file %s was created with this content:
+%s
+
+The original test file contained:
+%s
+
+Generate the test file %s that contains ONLY the tests relevant to %s.
+Move tests that test functions/types now in %s to this new test file.
+If no tests are relevant, output an empty test file with just the package declaration.
+
+Output ONLY valid Go test code. Include package and imports. No markdown.`, fname, code, string(testContent), testFname, fname, fname)
+
+			testCode, err := client.Call(testPrompt, 3000)
+			if err != nil {
+				result.Files = append(result.Files, GeneratedFile{
+					Name:   testFname,
+					Status: "failed",
+					Error:  err.Error(),
+				})
+				cmd.Printf(" ✗ (%v)\n", err)
+				continue
+			}
+
+			testCode = cleanCode(testCode)
+			testOutPath := filepath.Join(outDir, testFname)
+
+			if err := os.WriteFile(testOutPath, []byte(testCode), 0644); err != nil {
+				result.Files = append(result.Files, GeneratedFile{
+					Name:   testFname,
+					Status: "failed",
+					Error:  err.Error(),
+				})
+				cmd.Println(" ✗ (write error)")
+				continue
+			}
+
+			testLines := analyzer.CountLines(testCode)
+			result.Files = append(result.Files, GeneratedFile{
+				Name:   testFname,
+				Lines:  testLines,
+				Status: "created",
+			})
+			cmd.Printf(" ✓ (%d lines)\n", testLines)
+		}
 	}
 
 	if cfg.JSON {

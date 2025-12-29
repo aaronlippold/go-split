@@ -26,16 +26,19 @@ type ValidatedFile struct {
 	Error string `json:"error,omitempty"`
 }
 
-var validateCmd = &cobra.Command{
-	Use:   "validate <path>",
-	Short: "Validate Go syntax of files",
-	Long:  `Validate that all Go files in the specified path have valid syntax.`,
-	Args:  cobra.ExactArgs(1),
-	RunE:  runValidate,
+// newValidateCmd creates the validate command.
+func newValidateCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "validate <path>",
+		Short: "Validate Go syntax of files",
+		Long:  `Validate that all Go files in the specified path have valid syntax.`,
+		Args:  cobra.ExactArgs(1),
+		RunE:  runValidate,
+	}
 }
 
 func runValidate(cmd *cobra.Command, args []string) error {
-	ui := NewUI(cmd.OutOrStdout(), cfg.JSON)
+	ui := NewUI(cmd.OutOrStdout(), cfg.JSON || cfg.JSONL)
 
 	target := args[0]
 	info, err := os.Stat(target)
@@ -69,11 +72,19 @@ func runValidate(cmd *cobra.Command, args []string) error {
 			enc.SetIndent("", "  ")
 			return enc.Encode(result)
 		}
+		if cfg.JSONL {
+			// JSONL: no output for empty directory
+			return nil
+		}
 		ui.Info("No Go files found")
 		return nil
 	}
 
-	cmd.Println()
+	if !cfg.JSON && !cfg.JSONL {
+		cmd.Println()
+	}
+
+	jsonlEnc := json.NewEncoder(cmd.OutOrStdout())
 
 	for i, f := range matches {
 		vf := ValidatedFile{Name: filepath.Base(f), Valid: true}
@@ -82,15 +93,33 @@ func runValidate(cmd *cobra.Command, args []string) error {
 			vf.Valid = false
 			vf.Error = err.Error()
 			result.Valid = false
-			if !cfg.JSON {
-				cmd.Printf("   [%d/%d] %s ✗\n        %v\n", i+1, len(matches), filepath.Base(f), err)
-			}
-		} else if !cfg.JSON {
-			if cfg.Verbose {
-				cmd.Printf("   [%d/%d] %s ✓\n", i+1, len(matches), filepath.Base(f))
-			}
 		}
 		result.Files = append(result.Files, vf)
+
+		// JSONL: output each file as it's processed
+		if cfg.JSONL {
+			_ = jsonlEnc.Encode(vf)
+			continue
+		}
+
+		if cfg.JSON {
+			continue // Collect all, output at end
+		}
+
+		// Text mode
+		if !vf.Valid {
+			cmd.Printf("   [%d/%d] %s ✗\n        %v\n", i+1, len(matches), filepath.Base(f), err)
+		} else if cfg.Verbose {
+			cmd.Printf("   [%d/%d] %s ✓\n", i+1, len(matches), filepath.Base(f))
+		}
+	}
+
+	if cfg.JSONL {
+		// Already output each file
+		if !result.Valid {
+			return fmt.Errorf("validation failed")
+		}
+		return nil
 	}
 
 	if cfg.JSON {

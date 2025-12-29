@@ -175,3 +175,66 @@ func TestSubcommandHelp(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateJSONL(t *testing.T) {
+	dir := t.TempDir()
+	testFile1 := filepath.Join(dir, "test1.go")
+	testFile2 := filepath.Join(dir, "test2.go")
+	if err := os.WriteFile(testFile1, []byte("package test\n\nfunc Hello() {}\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(testFile2, []byte("package test\n\nfunc World() {}\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	err := cmd.ExecuteWithArgs([]string{"--jsonl", "validate", dir}, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("ExecuteWithArgs() error = %v", err)
+	}
+
+	// JSONL should output one JSON object per line
+	lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
+	if len(lines) != 2 {
+		t.Errorf("Expected 2 lines of JSONL output, got %d: %s", len(lines), stdout.String())
+	}
+
+	// Each line should be valid JSON
+	for i, line := range lines {
+		var result map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &result); err != nil {
+			t.Errorf("Line %d is not valid JSON: %v", i+1, err)
+		}
+		if result["valid"] != true {
+			t.Errorf("Line %d: expected valid=true", i+1)
+		}
+	}
+}
+
+func TestCheckJSONL(t *testing.T) {
+	dir := t.TempDir()
+
+	var stdout, stderr bytes.Buffer
+	// Skip most checks, just run gofmt which is fast
+	err := cmd.ExecuteWithArgs([]string{"--jsonl", "check", "--skip-vet", "--skip-lint", "--skip-sec", "--skip-build", "--skip-tests", dir}, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("ExecuteWithArgs() error = %v", err)
+	}
+
+	// JSONL should output one JSON object per check
+	lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
+	if len(lines) < 1 {
+		t.Errorf("Expected at least 1 line of JSONL output, got: %s", stdout.String())
+	}
+
+	// Each line should be valid JSON with name and passed fields
+	for i, line := range lines {
+		var result map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &result); err != nil {
+			t.Errorf("Line %d is not valid JSON: %v", i+1, err)
+		}
+		if result["name"] == nil {
+			t.Errorf("Line %d: expected name field", i+1)
+		}
+	}
+}

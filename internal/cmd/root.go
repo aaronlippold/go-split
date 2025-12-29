@@ -31,6 +31,7 @@ type Config struct {
 	CaptureDir string
 	APIKey     string
 	JSON       bool
+	JSONL      bool
 	NoColor    bool
 	// Check flags
 	SkipFmt    bool
@@ -42,32 +43,28 @@ type Config struct {
 	SkipChecks bool
 }
 
+// Global config instance used by commands
 var cfg = &Config{}
 
-// rootCmd is the base command.
-var rootCmd = &cobra.Command{
-	Use:   "go-split",
-	Short: "Intelligently split large Go files into smaller modules",
-	Long: `go-split uses AI to analyze Go files and recommend how to split them
+// NewRootCmd creates a new root command with all subcommands.
+// This factory function allows creating fresh command trees for testing.
+func NewRootCmd() *cobra.Command {
+	// Reset config to defaults
+	*cfg = Config{
+		Endpoint: defaultEndpoint,
+		Model:    defaultModel,
+		Timeout:  defaultTimeout,
+	}
+
+	rootCmd := &cobra.Command{
+		Use:   "go-split",
+		Short: "Intelligently split large Go files into smaller modules",
+		Long: `go-split uses AI to analyze Go files and recommend how to split them
 into smaller, more focused modules. It can also generate the split files
 and run quality checks.`,
-	Version: Version,
-}
+		Version: Version,
+	}
 
-// Execute runs the CLI.
-func Execute() error {
-	return rootCmd.Execute()
-}
-
-// ExecuteWithArgs runs the CLI with custom args and writers (for testing).
-func ExecuteWithArgs(args []string, stdout, stderr io.Writer) error {
-	rootCmd.SetArgs(args)
-	rootCmd.SetOut(stdout)
-	rootCmd.SetErr(stderr)
-	return rootCmd.Execute()
-}
-
-func init() {
 	// Global flags
 	rootCmd.PersistentFlags().StringVar(&cfg.Endpoint, "endpoint", getEnvOrDefault("GO_SPLIT_ENDPOINT", defaultEndpoint), "API endpoint URL")
 	rootCmd.PersistentFlags().StringVar(&cfg.Model, "model", getEnvOrDefault("GO_SPLIT_MODEL", defaultModel), "Model to use")
@@ -77,13 +74,33 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfg.CaptureDir, "capture", getEnvOrDefault("GO_SPLIT_CAPTURE", ""), "Capture API requests/responses to directory")
 	rootCmd.PersistentFlags().StringVar(&cfg.APIKey, "api-key", "", "Anthropic API key (uses ANTHROPIC_API_KEY env if not set)")
 	rootCmd.PersistentFlags().BoolVar(&cfg.JSON, "json", false, "Output in JSON format for scripting")
+	rootCmd.PersistentFlags().BoolVar(&cfg.JSONL, "jsonl", false, "Output in JSONL format (newline-delimited JSON)")
 	rootCmd.PersistentFlags().BoolVar(&cfg.NoColor, "no-color", false, "Disable colored output")
 
+	// Create subcommands
+	checkCmd := newCheckCmd()
+
 	// Add subcommands
-	rootCmd.AddCommand(analyzeCmd)
-	rootCmd.AddCommand(generateCmd)
+	rootCmd.AddCommand(newAnalyzeCmd())
+	rootCmd.AddCommand(newGenerateCmd())
 	rootCmd.AddCommand(checkCmd)
-	rootCmd.AddCommand(validateCmd)
+	rootCmd.AddCommand(newValidateCmd())
+
+	return rootCmd
+}
+
+// Execute runs the CLI.
+func Execute() error {
+	return NewRootCmd().Execute()
+}
+
+// ExecuteWithArgs runs the CLI with custom args and writers (for testing).
+func ExecuteWithArgs(args []string, stdout, stderr io.Writer) error {
+	cmd := NewRootCmd()
+	cmd.SetArgs(args)
+	cmd.SetOut(stdout)
+	cmd.SetErr(stderr)
+	return cmd.Execute()
 }
 
 func getEnvOrDefault(key, defaultVal string) string {

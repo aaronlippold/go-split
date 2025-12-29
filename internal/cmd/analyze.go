@@ -26,13 +26,16 @@ type AnalyzeResult struct {
 	Recommendations string `json:"recommendations,omitempty"`
 }
 
-var analyzeCmd = &cobra.Command{
-	Use:   "analyze <file>",
-	Short: "Analyze a Go file and show recommended splits",
-	Long: `Analyze a Go file to understand its structure and get AI-powered
+// newAnalyzeCmd creates the analyze command.
+func newAnalyzeCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "analyze <file>",
+		Short: "Analyze a Go file and show recommended splits",
+		Long: `Analyze a Go file to understand its structure and get AI-powered
 recommendations for how to split it into smaller, focused modules.`,
-	Args: cobra.ExactArgs(1),
-	RunE: runAnalyze,
+		Args: cobra.ExactArgs(1),
+		RunE: runAnalyze,
+	}
 }
 
 func runAnalyze(cmd *cobra.Command, args []string) error {

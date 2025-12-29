@@ -26,27 +26,31 @@ type CheckStatus struct {
 	Error   string `json:"error,omitempty"`
 }
 
-var checkCmd = &cobra.Command{
-	Use:   "check <path>",
-	Short: "Run quality checks on Go files",
-	Long: `Run quality checks including gofmt, go vet, golangci-lint,
+// newCheckCmd creates the check command with its flags.
+func newCheckCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "check <path>",
+		Short: "Run quality checks on Go files",
+		Long: `Run quality checks including gofmt, go vet, golangci-lint,
 gosec, go build, and go test on the specified file or directory.`,
-	Args: cobra.ExactArgs(1),
-	RunE: runCheck,
-}
+		Args: cobra.ExactArgs(1),
+		RunE: runCheck,
+	}
 
-func init() {
-	checkCmd.Flags().BoolVar(&cfg.SkipChecks, "skip-checks", false, "Skip all quality checks")
-	checkCmd.Flags().BoolVar(&cfg.SkipFmt, "skip-fmt", false, "Skip gofmt check")
-	checkCmd.Flags().BoolVar(&cfg.SkipVet, "skip-vet", false, "Skip go vet check")
-	checkCmd.Flags().BoolVar(&cfg.SkipLint, "skip-lint", false, "Skip golangci-lint check")
-	checkCmd.Flags().BoolVar(&cfg.SkipSec, "skip-sec", false, "Skip gosec security check")
-	checkCmd.Flags().BoolVar(&cfg.SkipBuild, "skip-build", false, "Skip go build check")
-	checkCmd.Flags().BoolVar(&cfg.SkipTests, "skip-tests", false, "Skip go test check")
+	// Check command flags
+	cmd.Flags().BoolVar(&cfg.SkipChecks, "skip-checks", false, "Skip all quality checks")
+	cmd.Flags().BoolVar(&cfg.SkipFmt, "skip-fmt", false, "Skip gofmt check")
+	cmd.Flags().BoolVar(&cfg.SkipVet, "skip-vet", false, "Skip go vet check")
+	cmd.Flags().BoolVar(&cfg.SkipLint, "skip-lint", false, "Skip golangci-lint check")
+	cmd.Flags().BoolVar(&cfg.SkipSec, "skip-sec", false, "Skip gosec security check")
+	cmd.Flags().BoolVar(&cfg.SkipBuild, "skip-build", false, "Skip go build check")
+	cmd.Flags().BoolVar(&cfg.SkipTests, "skip-tests", false, "Skip go test check")
+
+	return cmd
 }
 
 func runCheck(cmd *cobra.Command, args []string) error {
-	ui := NewUI(cmd.OutOrStdout(), cfg.JSON)
+	ui := NewUI(cmd.OutOrStdout(), cfg.JSON || cfg.JSONL)
 
 	target := args[0]
 	info, err := os.Stat(target)
@@ -73,11 +77,18 @@ func runCheck(cmd *cobra.Command, args []string) error {
 			enc.SetIndent("", "  ")
 			return enc.Encode(result)
 		}
+		if cfg.JSONL {
+			return nil
+		}
 		ui.Info("All checks skipped (--skip-checks)")
 		return nil
 	}
 
-	cmd.Println()
+	if !cfg.JSON && !cfg.JSONL {
+		cmd.Println()
+	}
+
+	jsonlEnc := json.NewEncoder(cmd.OutOrStdout())
 
 	checks := []struct {
 		name string
@@ -100,6 +111,10 @@ func runCheck(cmd *cobra.Command, args []string) error {
 			status.Skipped = true
 			status.Passed = true
 			result.Checks = append(result.Checks, status)
+			if cfg.JSONL {
+				_ = jsonlEnc.Encode(status)
+				continue
+			}
 			if !cfg.JSON {
 				cmd.Printf("   [%d/%d] %s - skipped\n", i+1, len(checks), check.name)
 			}
@@ -113,6 +128,10 @@ func runCheck(cmd *cobra.Command, args []string) error {
 				status.Passed = true
 				status.Error = "not installed"
 				result.Checks = append(result.Checks, status)
+				if cfg.JSONL {
+					_ = jsonlEnc.Encode(status)
+					continue
+				}
 				if !cfg.JSON && cfg.Verbose {
 					cmd.Printf("   [%d/%d] %s - not installed\n", i+1, len(checks), check.name)
 				}
@@ -120,7 +139,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		if !cfg.JSON {
+		if !cfg.JSON && !cfg.JSONL {
 			cmd.Printf("   [%d/%d] %s...", i+1, len(checks), check.name)
 		}
 
@@ -128,16 +147,33 @@ func runCheck(cmd *cobra.Command, args []string) error {
 			status.Passed = false
 			status.Error = err.Error()
 			result.Passed = false
-			if !cfg.JSON {
-				cmd.Printf(" ✗\n        %v\n", err)
-			}
 		} else {
 			status.Passed = true
-			if !cfg.JSON {
-				cmd.Println(" ✓")
-			}
 		}
 		result.Checks = append(result.Checks, status)
+
+		if cfg.JSONL {
+			_ = jsonlEnc.Encode(status)
+			continue
+		}
+
+		if cfg.JSON {
+			continue
+		}
+
+		// Text mode output
+		if !status.Passed {
+			cmd.Printf(" ✗\n        %v\n", status.Error)
+		} else {
+			cmd.Println(" ✓")
+		}
+	}
+
+	if cfg.JSONL {
+		if !result.Passed {
+			return fmt.Errorf("some checks failed")
+		}
+		return nil
 	}
 
 	if cfg.JSON {
