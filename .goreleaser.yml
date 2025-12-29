@@ -47,6 +47,7 @@ changelog:
       - '^docs:'
       - '^test:'
       - '^ci:'
+      - '^bd sync:'
       - Merge pull request
       - Merge branch
 
@@ -57,3 +58,19 @@ release:
   draft: false
   prerelease: auto
   name_template: "{{.Tag}}"
+
+# Homebrew tap configuration
+brews:
+  - name: go-split
+    repository:
+      owner: aaronlippold
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/aaronlippold/go-split"
+    description: "AI-powered Go file splitter - intelligently split large Go files into focused modules"
+    license: "Apache-2.0"
+    install: |
+      bin.install "go-split"
+    test: |
+      system "#{bin}/go-split", "--version"

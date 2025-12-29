@@ -1,6 +1,7 @@
 # go-split
 
 [![CI](https://github.com/aaronlippold/go-split/actions/workflows/ci.yml/badge.svg)](https://github.com/aaronlippold/go-split/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/aaronlippold/go-split)](https://github.com/aaronlippold/go-split/releases)
 [![Go Report Card](https://goreportcard.com/badge/github.com/aaronlippold/go-split)](https://goreportcard.com/report/github.com/aaronlippold/go-split)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
@@ -27,10 +28,11 @@ go install github.com/aaronlippold/go-split/cmd/go-split@latest
 
 Download the latest binary from [Releases](https://github.com/aaronlippold/go-split/releases).
 
-### Homebrew (coming soon)
+### Homebrew
 
 ```bash
-brew install aaronlippold/tap/go-split
+brew tap aaronlippold/tap
+brew install go-split
 ```
 
 ## Quick Start
