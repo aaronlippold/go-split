@@ -83,9 +83,8 @@ func TestClient_Call_EmptyResponse(t *testing.T) {
 func TestClient_Call_Timeout(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(100 * time.Millisecond)
-		json.NewEncoder(w).Encode(api.Response{
-			Content: []api.ContentBlock{{Type: "text", Text: "slow"}},
-		})
+		resp := api.Response{Content: []api.ContentBlock{{Type: "text", Text: "slow"}}}
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
