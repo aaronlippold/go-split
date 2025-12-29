@@ -35,10 +35,31 @@ brew install aaronlippold/tap/go-split
 
 ## Quick Start
 
+### Option 1: Direct Anthropic API
+
 ```bash
 # Set your Anthropic API key
 export ANTHROPIC_API_KEY=sk-ant-...
 
+# Analyze a file
+go-split analyze server.go
+```
+
+### Option 2: Claude Code / Wrapper (no API key needed)
+
+If you have [Claude Code](https://claude.ai/code) with the [OpenAI wrapper](https://github.com/RichardAtCT/claude-code-openai-wrapper), you can use go-split without an API key:
+
+```bash
+# Start the wrapper (uses your Claude subscription)
+claude-code-openai-wrapper
+
+# In another terminal, analyze files
+go-split analyze server.go
+```
+
+### Basic Workflow
+
+```bash
 # Analyze a file
 go-split analyze server.go
 
@@ -56,8 +77,8 @@ go-split check ./split/
 
 go-split can use the Claude API in two ways:
 
-1. **Direct API** (recommended): Set `ANTHROPIC_API_KEY` environment variable
-2. **Wrapper mode**: Run [claude-code-openai-wrapper](https://github.com/RichardAtCT/claude-code-openai-wrapper) locally
+1. **Direct API**: Set `ANTHROPIC_API_KEY` environment variable or use `--api-key`
+2. **Wrapper mode** (default): Uses [claude-code-openai-wrapper](https://github.com/RichardAtCT/claude-code-openai-wrapper) at localhost:8000 - works with Claude Code subscription
 
 ### Commands
 
@@ -112,11 +133,12 @@ go-split check ./split/ --skip-lint --skip-tests
 | `--endpoint URL` | API endpoint (default: http://localhost:8000/v1/messages) |
 | `--model NAME` | Model to use (default: claude-sonnet-4-5-20250929) |
 | `--api-key KEY` | Anthropic API key (bypasses wrapper) |
-| `--verbose` | Verbose output |
+| `-V, --verbose` | Verbose output |
 | `--dry-run` | Preview without writing files |
-| `--output DIR` | Output directory |
+| `-o, --output DIR` | Output directory |
 | `--capture DIR` | Capture API requests/responses for debugging |
 | `--json` | Output in JSON format (for scripting) |
+| `--no-color` | Disable colored output |
 
 ### Check Flags
 

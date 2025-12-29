@@ -2,15 +2,13 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
-	"github.com/aaronlippold/go-split/internal/cli"
+	"github.com/aaronlippold/go-split/internal/cmd"
 )
 
 func main() {
-	if err := cli.Run(os.Args[1:], os.Stdout, os.Stderr); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	if err := cmd.Execute(); err != nil {
 		os.Exit(1)
 	}
 }
