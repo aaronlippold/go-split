@@ -32,7 +32,7 @@ Download the latest binary from [Releases](https://github.com/aaronlippold/go-sp
 
 ```bash
 brew tap aaronlippold/tap
-brew install go-split
+brew install --cask go-split
 ```
 
 ## Quick Start

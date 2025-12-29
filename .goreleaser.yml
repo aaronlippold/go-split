@@ -24,7 +24,8 @@ builds:
 
 archives:
   - id: default
-    format: tar.gz
+    formats:
+      - tar.gz
     name_template: >-
       {{ .ProjectName }}_
       {{- .Version }}_
@@ -32,7 +33,8 @@ archives:
       {{- .Arch }}
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
 
 checksum:
   name_template: 'checksums.txt'
@@ -59,18 +61,13 @@ release:
   prerelease: auto
   name_template: "{{.Tag}}"
 
-# Homebrew tap configuration
-brews:
+# Homebrew tap configuration (using casks for pre-compiled binaries)
+homebrew_casks:
   - name: go-split
     repository:
       owner: aaronlippold
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    directory: Formula
     homepage: "https://github.com/aaronlippold/go-split"
     description: "AI-powered Go file splitter - intelligently split large Go files into focused modules"
     license: "Apache-2.0"
-    install: |
-      bin.install "go-split"
-    test: |
-      system "#{bin}/go-split", "--version"
