@@ -5,6 +5,8 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/aaronlippold/go-split)](https://goreportcard.com/report/github.com/aaronlippold/go-split)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
+> **⚠️ Work in Progress** - go-split is functional but actively being improved. Known issue: can generate duplicate functions across files when splitting (see [Issue #2](https://github.com/aaronlippold/go-split/issues/2)). Manual deduplication may be required. Fix in progress.
+
 Intelligently split large Go files into smaller, focused modules using AI analysis.
 
 ## Overview
