@@ -97,6 +97,20 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 		outDir = filepath.Dir(filename)
 	}
 
+	// Create output directory if it doesn't exist
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		return fmt.Errorf("creating output directory: %w", err)
+	}
+
+	// Inform user if directory was created (not in structured output mode)
+	if !IsStructuredOutput() {
+		if _, err := os.Stat(outDir); err == nil {
+			// Directory exists, check if we just created it or if it already existed
+			// For now, we'll just note the output directory
+			ui.Info(fmt.Sprintf("Output directory: %s", outDir))
+		}
+	}
+
 	result := GenerateResult{
 		SourceFile: filepath.Base(filename),
 		OutputDir:  outDir,
