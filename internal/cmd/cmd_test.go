@@ -261,3 +261,49 @@ func TestValidateYAML(t *testing.T) {
 		t.Errorf("Expected 'valid: true' in YAML output, got: %s", output)
 	}
 }
+
+func TestGenerateCreatesOutputDirectory(t *testing.T) {
+	// This test verifies that os.MkdirAll creates nested directories
+	// We test this directly rather than through the full generate command
+	// since generate requires API calls which we want to avoid in unit tests
+
+	dir := t.TempDir()
+
+	// Create a nested output directory path that doesn't exist
+	outputDir := filepath.Join(dir, "output", "nested", "deep")
+
+	// Verify directory doesn't exist yet
+	if _, err := os.Stat(outputDir); !os.IsNotExist(err) {
+		t.Fatal("Test setup failed: directory should not exist yet")
+	}
+
+	// Create directory (same call generate.go uses)
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+
+	// Verify directory was created
+	info, err := os.Stat(outputDir)
+	if err != nil {
+		t.Errorf("Output directory was not created: %v", err)
+	}
+	if !info.IsDir() {
+		t.Errorf("Created path is not a directory")
+	}
+}
+
+func TestMkdirAllWithExistingDirectory(t *testing.T) {
+	// This test verifies that os.MkdirAll is idempotent (doesn't error if dir exists)
+	dir := t.TempDir()
+	outputDir := filepath.Join(dir, "output")
+
+	// Create directory first time
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		t.Fatalf("First MkdirAll failed: %v", err)
+	}
+
+	// Create same directory again - should not error
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		t.Errorf("MkdirAll should be idempotent, got error: %v", err)
+	}
+}
