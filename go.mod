@@ -6,6 +6,8 @@ require github.com/anthropics/anthropic-sdk-go v1.19.0
 
 require (
 	github.com/briandowns/spinner v1.23.2 // indirect
+	github.com/drewstinnett/gout-cobra v0.2.0 // indirect
+	github.com/drewstinnett/gout/v2 v2.3.0 // indirect
 	github.com/fatih/color v1.7.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.2 // indirect
@@ -18,4 +20,5 @@ require (
 	github.com/tidwall/sjson v1.2.5 // indirect
 	golang.org/x/sys v0.34.0 // indirect
 	golang.org/x/term v0.1.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

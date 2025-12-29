@@ -84,7 +84,7 @@ func TestValidateJSON(t *testing.T) {
 	}
 
 	var stdout, stderr bytes.Buffer
-	err := cmd.ExecuteWithArgs([]string{"--json", "validate", dir}, &stdout, &stderr)
+	err := cmd.ExecuteWithArgs([]string{"--format=json", "validate", dir}, &stdout, &stderr)
 	if err != nil {
 		t.Fatalf("ExecuteWithArgs() error = %v", err)
 	}
@@ -111,7 +111,7 @@ func TestValidateJSON_Invalid(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 	// JSON mode returns structured output, no Go error
-	err := cmd.ExecuteWithArgs([]string{"--json", "validate", dir}, &stdout, &stderr)
+	err := cmd.ExecuteWithArgs([]string{"--format=json", "validate", dir}, &stdout, &stderr)
 	if err != nil {
 		t.Fatalf("Unexpected error in JSON mode: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestCheckJSON_SkipAll(t *testing.T) {
 	dir := t.TempDir()
 
 	var stdout, stderr bytes.Buffer
-	err := cmd.ExecuteWithArgs([]string{"--json", "check", "--skip-checks", dir}, &stdout, &stderr)
+	err := cmd.ExecuteWithArgs([]string{"--format=json", "check", "--skip-checks", dir}, &stdout, &stderr)
 	if err != nil {
 		t.Fatalf("ExecuteWithArgs() error = %v", err)
 	}
@@ -188,7 +188,7 @@ func TestValidateJSONL(t *testing.T) {
 	}
 
 	var stdout, stderr bytes.Buffer
-	err := cmd.ExecuteWithArgs([]string{"--jsonl", "validate", dir}, &stdout, &stderr)
+	err := cmd.ExecuteWithArgs([]string{"--format=jsonl", "validate", dir}, &stdout, &stderr)
 	if err != nil {
 		t.Fatalf("ExecuteWithArgs() error = %v", err)
 	}
@@ -216,7 +216,7 @@ func TestCheckJSONL(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 	// Skip most checks, just run gofmt which is fast
-	err := cmd.ExecuteWithArgs([]string{"--jsonl", "check", "--skip-vet", "--skip-lint", "--skip-sec", "--skip-build", "--skip-tests", dir}, &stdout, &stderr)
+	err := cmd.ExecuteWithArgs([]string{"--format=jsonl", "check", "--skip-vet", "--skip-lint", "--skip-sec", "--skip-build", "--skip-tests", dir}, &stdout, &stderr)
 	if err != nil {
 		t.Fatalf("ExecuteWithArgs() error = %v", err)
 	}
@@ -236,5 +236,28 @@ func TestCheckJSONL(t *testing.T) {
 		if result["name"] == nil {
 			t.Errorf("Line %d: expected name field", i+1)
 		}
+	}
+}
+
+func TestValidateYAML(t *testing.T) {
+	dir := t.TempDir()
+	testFile := filepath.Join(dir, "test.go")
+	if err := os.WriteFile(testFile, []byte("package test\n\nfunc Hello() {}\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	err := cmd.ExecuteWithArgs([]string{"--format=yaml", "validate", dir}, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("ExecuteWithArgs() error = %v", err)
+	}
+
+	output := stdout.String()
+	// YAML output should contain key: value pairs
+	if !strings.Contains(output, "target:") {
+		t.Errorf("Expected 'target:' in YAML output, got: %s", output)
+	}
+	if !strings.Contains(output, "valid: true") {
+		t.Errorf("Expected 'valid: true' in YAML output, got: %s", output)
 	}
 }

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -39,7 +38,7 @@ recommendations for how to split it into smaller, focused modules.`,
 }
 
 func runAnalyze(cmd *cobra.Command, args []string) error {
-	ui := NewUI(cmd.OutOrStdout(), cfg.JSON)
+	ui := NewUI(cmd.OutOrStdout(), IsStructuredOutput())
 
 	filename := args[0]
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
@@ -71,7 +70,7 @@ func runAnalyze(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if !cfg.JSON {
+	if !IsStructuredOutput() {
 		ui.Header(fmt.Sprintf("📄 Analyzing %s (%d lines)", result.File, result.Lines))
 		cmd.Printf("   Package:   %s\n", result.Package)
 		cmd.Printf("   Functions: %d\n", result.Functions)
@@ -124,10 +123,8 @@ Be concise. File content:
 	ui.StopSpinnerMsg(true, "Got recommendations")
 	result.Recommendations = response
 
-	if cfg.JSON {
-		enc := json.NewEncoder(cmd.OutOrStdout())
-		enc.SetIndent("", "  ")
-		return enc.Encode(result)
+	if IsStructuredOutput() {
+		return PrintOutput(cmd.OutOrStdout(), result)
 	}
 
 	ui.Header("📋 Recommendations")

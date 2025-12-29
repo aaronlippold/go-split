@@ -50,7 +50,8 @@ gosec, go build, and go test on the specified file or directory.`,
 }
 
 func runCheck(cmd *cobra.Command, args []string) error {
-	ui := NewUI(cmd.OutOrStdout(), cfg.JSON || cfg.JSONL)
+	ui := NewUI(cmd.OutOrStdout(), IsStructuredOutput())
+	format := GetFormat()
 
 	target := args[0]
 	info, err := os.Stat(target)
@@ -72,19 +73,17 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	ui.Header(fmt.Sprintf("🔍 Running quality checks on %s", dir))
 
 	if cfg.SkipChecks {
-		if cfg.JSON {
-			enc := json.NewEncoder(cmd.OutOrStdout())
-			enc.SetIndent("", "  ")
-			return enc.Encode(result)
+		if format == "json" || format == "yaml" {
+			return PrintOutput(cmd.OutOrStdout(), result)
 		}
-		if cfg.JSONL {
+		if format == "jsonl" {
 			return nil
 		}
 		ui.Info("All checks skipped (--skip-checks)")
 		return nil
 	}
 
-	if !cfg.JSON && !cfg.JSONL {
+	if !IsStructuredOutput() {
 		cmd.Println()
 	}
 
@@ -111,11 +110,11 @@ func runCheck(cmd *cobra.Command, args []string) error {
 			status.Skipped = true
 			status.Passed = true
 			result.Checks = append(result.Checks, status)
-			if cfg.JSONL {
+			if format == "jsonl" {
 				_ = jsonlEnc.Encode(status)
 				continue
 			}
-			if !cfg.JSON {
+			if !IsStructuredOutput() {
 				cmd.Printf("   [%d/%d] %s - skipped\n", i+1, len(checks), check.name)
 			}
 			continue
@@ -128,18 +127,18 @@ func runCheck(cmd *cobra.Command, args []string) error {
 				status.Passed = true
 				status.Error = "not installed"
 				result.Checks = append(result.Checks, status)
-				if cfg.JSONL {
+				if format == "jsonl" {
 					_ = jsonlEnc.Encode(status)
 					continue
 				}
-				if !cfg.JSON && cfg.Verbose {
+				if !IsStructuredOutput() && cfg.Verbose {
 					cmd.Printf("   [%d/%d] %s - not installed\n", i+1, len(checks), check.name)
 				}
 				continue
 			}
 		}
 
-		if !cfg.JSON && !cfg.JSONL {
+		if !IsStructuredOutput() {
 			cmd.Printf("   [%d/%d] %s...", i+1, len(checks), check.name)
 		}
 
@@ -152,12 +151,12 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		}
 		result.Checks = append(result.Checks, status)
 
-		if cfg.JSONL {
+		if format == "jsonl" {
 			_ = jsonlEnc.Encode(status)
 			continue
 		}
 
-		if cfg.JSON {
+		if IsStructuredOutput() {
 			continue
 		}
 
@@ -169,17 +168,15 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if cfg.JSONL {
+	if format == "jsonl" {
 		if !result.Passed {
 			return fmt.Errorf("some checks failed")
 		}
 		return nil
 	}
 
-	if cfg.JSON {
-		enc := json.NewEncoder(cmd.OutOrStdout())
-		enc.SetIndent("", "  ")
-		return enc.Encode(result)
+	if IsStructuredOutput() {
+		return PrintOutput(cmd.OutOrStdout(), result)
 	}
 
 	cmd.Println()

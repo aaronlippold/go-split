@@ -38,7 +38,8 @@ func newValidateCmd() *cobra.Command {
 }
 
 func runValidate(cmd *cobra.Command, args []string) error {
-	ui := NewUI(cmd.OutOrStdout(), cfg.JSON || cfg.JSONL)
+	ui := NewUI(cmd.OutOrStdout(), IsStructuredOutput())
+	format := GetFormat()
 
 	target := args[0]
 	info, err := os.Stat(target)
@@ -67,20 +68,17 @@ func runValidate(cmd *cobra.Command, args []string) error {
 	result.FileCount = len(matches)
 
 	if len(matches) == 0 {
-		if cfg.JSON {
-			enc := json.NewEncoder(cmd.OutOrStdout())
-			enc.SetIndent("", "  ")
-			return enc.Encode(result)
+		if format == "json" || format == "yaml" {
+			return PrintOutput(cmd.OutOrStdout(), result)
 		}
-		if cfg.JSONL {
-			// JSONL: no output for empty directory
-			return nil
+		if format == "jsonl" {
+			return nil // No output for empty directory
 		}
 		ui.Info("No Go files found")
 		return nil
 	}
 
-	if !cfg.JSON && !cfg.JSONL {
+	if !IsStructuredOutput() {
 		cmd.Println()
 	}
 
@@ -96,13 +94,13 @@ func runValidate(cmd *cobra.Command, args []string) error {
 		}
 		result.Files = append(result.Files, vf)
 
-		// JSONL: output each file as it's processed
-		if cfg.JSONL {
+		// JSONL: output each file as it's processed (streaming)
+		if format == "jsonl" {
 			_ = jsonlEnc.Encode(vf)
 			continue
 		}
 
-		if cfg.JSON {
+		if IsStructuredOutput() {
 			continue // Collect all, output at end
 		}
 
@@ -114,18 +112,15 @@ func runValidate(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if cfg.JSONL {
-		// Already output each file
+	if format == "jsonl" {
 		if !result.Valid {
 			return fmt.Errorf("validation failed")
 		}
 		return nil
 	}
 
-	if cfg.JSON {
-		enc := json.NewEncoder(cmd.OutOrStdout())
-		enc.SetIndent("", "  ")
-		return enc.Encode(result)
+	if IsStructuredOutput() {
+		return PrintOutput(cmd.OutOrStdout(), result)
 	}
 
 	if !result.Valid {

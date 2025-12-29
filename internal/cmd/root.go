@@ -30,8 +30,6 @@ type Config struct {
 	OutputDir  string
 	CaptureDir string
 	APIKey     string
-	JSON       bool
-	JSONL      bool
 	NoColor    bool
 	// Check flags
 	SkipFmt    bool
@@ -73,9 +71,10 @@ and run quality checks.`,
 	rootCmd.PersistentFlags().StringVarP(&cfg.OutputDir, "output", "o", "", "Output directory (default: same as input)")
 	rootCmd.PersistentFlags().StringVar(&cfg.CaptureDir, "capture", getEnvOrDefault("GO_SPLIT_CAPTURE", ""), "Capture API requests/responses to directory")
 	rootCmd.PersistentFlags().StringVar(&cfg.APIKey, "api-key", "", "Anthropic API key (uses ANTHROPIC_API_KEY env if not set)")
-	rootCmd.PersistentFlags().BoolVar(&cfg.JSON, "json", false, "Output in JSON format for scripting")
-	rootCmd.PersistentFlags().BoolVar(&cfg.JSONL, "jsonl", false, "Output in JSONL format (newline-delimited JSON)")
 	rootCmd.PersistentFlags().BoolVar(&cfg.NoColor, "no-color", false, "Disable colored output")
+
+	// Output format flag (uses gout)
+	BindOutputFlags(rootCmd)
 
 	// Create subcommands
 	checkCmd := newCheckCmd()
