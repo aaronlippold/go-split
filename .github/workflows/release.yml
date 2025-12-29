@@ -34,13 +34,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Fetch the tag created by semantic-release
+      - name: Fetch new tag
+        if: steps.semrel.outputs.version != ''
+        run: |
+          git fetch --tags
+          echo "Release version: v${{ steps.semrel.outputs.version }}"
+
       # Only run GoReleaser if a new version was released
       - name: Run GoReleaser
         if: steps.semrel.outputs.version != ''
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
-          version: latest
+          version: '~> v2'
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
